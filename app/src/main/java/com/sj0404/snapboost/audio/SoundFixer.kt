@@ -205,7 +205,7 @@ class SoundFixer(private val context: Context) {
             if (r.ok) {
                 return Outcome(true, "Игровой режим", "Производительный режим запрошен для $pkg")
             }
-            val shellErr = r.stderr.trim().take(80).ifEmpty { "код ${r.code}" }
+            val shellErr = r.stderr.trim().take(80).ifEmpty { "код ${r.exitCode}" }
             return Outcome(
                 false,
                 "Игровой режим",

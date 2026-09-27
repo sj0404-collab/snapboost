@@ -33,17 +33,35 @@ class AudioReader(private val context: Context) {
     private var lastUnderruns: Int? = null
     private var lastUnderrunAt: Long = 0L
 
+    /**
+     * Частота, которую нативно поддерживает аудио HAL.
+     *
+     * Метод появлялся в разных версиях с разной сигнатурой, а в стабах SDK
+     * он пересекается с другими перегрузками, поэтому вызывается рефлексией.
+     * Нет метода или он бросил исключение — возвращается null, и метрика
+     * расхождения остаётся неопределённой вместо выдуманного значения.
+     */
+    private fun nativeOutputSampleRate(): Int? = try {
+        val method = AudioTrack::class.java.methods.firstOrNull { m ->
+            m.name == "getNativeOutputSampleRate" &&
+                m.parameterCount == 1 &&
+                m.parameterTypes[0] == Context::class.java
+        } ?: return null
+        (method.invoke(null, context) as? Int)?.takeIf { it > 0 }
+    } catch (_: Throwable) {
+        null
+    }
+
     fun read(): AudioState {
         val sampleRate = readProperty(AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE)?.toIntOrNull()
         val fpb = readProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER)?.toIntOrNull()
 
         // Реальная частота, с которой умеет работать HAL. Расхождение с текущей
         // означает ресемплинг, а ресемплинг — источник артефактов.
-        val nativeRate = try {
-            AudioTrack.getNativeOutputSampleRate(context).takeIf { it > 0 }
-        } catch (_: Throwable) {
-            null
-        }
+        // Сигнатура getNativeOutputSampleRate в стабах SDK неоднозначна
+        // (без параметров на старых версиях, с Context на Android 12+),
+        // поэтому вызывается рефлексией: нет метода — метрика остаётся null.
+        val nativeRate = nativeOutputSampleRate()
         val mismatch = when {
             sampleRate != null && nativeRate != null && nativeRate > 0 -> sampleRate != nativeRate
             else -> null

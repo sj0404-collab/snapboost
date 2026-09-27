@@ -106,10 +106,11 @@ object AudioProbe {
                     framesWritten += written / bytesPerFrame
                 }
 
-                // Сигнатура getTimestamp различается между версиями SDK
-                // (Int-код возврата в старых, Boolean в новых стабах), поэтому
-                // результат трактуется одинаково в обоих случаях.
-                val tsOk: Boolean = when (val raw = track.getTimestamp(ts)) {
+                // Сигнатура getTimestamp различается между версиями SDK: стабы
+                // дают пересечённый тип Int & Boolean. Явно приводим к Any,
+                // чтобы smart-cast работал в обеих версиях (Int-код 0 = успех
+                // либо Boolean-признак успеха).
+                val tsOk: Boolean = when (val raw: Any = track.getTimestamp(ts)) {
                     is Boolean -> raw
                     is Int -> raw == 0
                     else -> false

@@ -67,7 +67,7 @@ class FpsTracker {
 
     fun stop() {
         hzStop = true
-        hzThread.quitSafely()
+        choreographer?.removeFrameCallback(hzCallback)
     }
 
     /**
