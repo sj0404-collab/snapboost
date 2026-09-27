@@ -4,15 +4,14 @@ import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.os.SystemClock
-import com.sj0404.snapboost.core.system.Privileged
 
 /**
  * Определяет, какое приложение сейчас на экране.
  *
- * Три независимых источника, каждый дешевле предыдущего по точности:
- *  1. `dumpsys activity` — точно, но нужен shell (Shizuku).
- *  2. UsageStatsManager — события активности, требуют «Доступ к использованию».
- *  3. Ничего — тогда HUD честно пишет, что игра не определена.
+ * Единственный источник — UsageStatsManager: события активности, они требуют
+ * «Доступ к использованию». `dumpsys activity` точнее, но закрыт для обычного
+ * приложения (нужен android.permission.DUMP), поэтому не используется.
+ * Если доступа нет — HUD честно пишет, что игра не определена.
  *
  * Никаких догадок по типу окна: неизвестный пакет остаётся неизвестным пакетом.
  */
@@ -67,22 +66,10 @@ class ForegroundGameDetector(private val context: Context) {
         manualPackage?.let { return it }
         if (SystemClock.elapsedRealtime() - lastDetectedAt < 1500L) return lastDetected
 
-        val pkg = fromDumpsys() ?: fromUsageStats()
+        val pkg = fromUsageStats()
         lastDetected = pkg
         lastDetectedAt = SystemClock.elapsedRealtime()
         return pkg
-    }
-
-    private fun fromDumpsys(): String? {
-        val dump = Privileged.dumpsys("activity", listOf("activities"), ttlMs = 2000L) ?: return null
-        val patterns = listOf(
-            Regex("mResumedActivity:\\s*ActivityRecord\\{[^}]*?\\s([A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)+)/"),
-            Regex("topResumedActivity=.*?\\s([A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)+)/")
-        )
-        for (p in patterns) {
-            p.find(dump)?.groupValues?.get(1)?.let { return it }
-        }
-        return null
     }
 
     /**

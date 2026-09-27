@@ -22,6 +22,14 @@
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
 
+    <!-- Тюнер: настройки экрана, запрос на игнорирование оптимизации батареи.
+         Все три — обычные разрешения, без системных привилегий. -->
+    <uses-permission android:name="android.permission.WRITE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
+        tools:ignore="BatteryLife" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+
     <!-- Видимость всех launchable-приложений: нужна, чтобы узнать пакет игры.
          Узкая формулировка вместо QUERY_ALL_PACKAGES. -->
     <queries>

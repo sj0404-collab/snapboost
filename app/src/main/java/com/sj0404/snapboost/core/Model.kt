@@ -109,7 +109,11 @@ data class AudioState(
     val sampleRate: Int? = null,
     val framesPerBuffer: Int? = null,
     val routeInfo: AudioRouteInfo = AudioRouteInfo(),
-    /** Счётчик underrun из AudioFlinger. Доступен только с shell-привилегиями. */
+    /**
+     * Счётчик underrun из AudioFlinger. Обычному приложению недоступен:
+     * `dumpsys media.audio_flinger` требует android.permission.DUMP,
+     * поэтому поле остаётся null и в HUD отображается как N/A.
+     */
     val underrunsTotal: Int? = null,
     val underrunsPerSec: Float? = null,
     val activeTracks: Int? = null,
@@ -122,7 +126,6 @@ data class AudioState(
 ) {
     val route: AudioRoute get() = routeInfo.route
     val routeName: String get() = routeInfo.name
-    val privileged: Boolean get() = underrunsTotal != null
 }
 
 data class Snapshot(
@@ -133,7 +136,5 @@ data class Snapshot(
     val pressure: PressureState = PressureState(),
     val process: ProcessState = ProcessState(),
     val audio: AudioState = AudioState(),
-    val fps: FpsState = FpsState(),
-    val privilegeSource: String = "app",
-    val hasShell: Boolean = false
+    val fps: FpsState = FpsState()
 )

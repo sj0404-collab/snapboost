@@ -11,17 +11,18 @@ object Diagnoser {
 
     enum class Severity { CRITICAL, WARN, INFO }
 
+    /**
+     * Что приложение реально может сделать по этому заключению. Список
+     * намеренно короткий: он содержит только действия из публичного API.
+     * Всё, что требует системных прав, в UI уходит человеку текстом, а не
+     * кнопкой, которая ничего не делает.
+     */
     enum class Action {
-        DISABLE_BT,
         WIRED_AUDIO,
-        DISABLE_SURROUND,
         SILENCE_NOTIFICATIONS,
         KILL_BACKGROUND,
-        DISABLE_ANIMATIONS,
-        PERF_MODE,
         COOL_DOWN,
-        SHIZUKU,
-        RESTART_APP
+        OPEN_AUDIO_SETTINGS
     }
 
     data class Finding(
@@ -43,7 +44,7 @@ object Diagnoser {
                 "Аудиобуфер голодает: underrun ${"%.1f".format(rate)}/с",
                 "Счётчик underrun в AudioFlinger растёт. Буфер не успевает наполняться — " +
                     "именно это слышно как «рыба», щелчки и пропуски на спецэффектах.",
-                if (a.route == AudioRoute.BLUETOOTH_A2DP) Action.WIRED_AUDIO else Action.DISABLE_SURROUND
+                if (a.route == AudioRoute.BLUETOOTH_A2DP) Action.WIRED_AUDIO else Action.KILL_BACKGROUND
             )
         }
 
@@ -77,8 +78,9 @@ object Diagnoser {
             f += Finding(
                 Severity.WARN,
                 "В тракте есть системный DSP",
-                "Найдено: $it. Объёмная обработка добавляет буферы и задержку; в стерео-играх она не нужна.",
-                Action.DISABLE_SURROUND
+                "Найдено: $it. Объёмная обработка добавляет буферы и задержку; в стерео-играх она не нужна. " +
+                    "Публичным API обычного приложения её не отключить — только в системных настройках звука.",
+                Action.OPEN_AUDIO_SETTINGS
             )
         }
 
@@ -97,9 +99,9 @@ object Diagnoser {
             f += Finding(
                 Severity.INFO,
                 "Счётчик underrun недоступен",
-                if (s.hasShell) "В дампе AudioFlinger нет поля underrun на этой прошивке."
-                else "Нужен доступ с правами shell (Shizuku): dumpsys закрыт обычным приложениям.",
-                Action.SHIZUKU
+                "Он живёт в `dumpsys media.audio_flinger`, а этот дамп требует android.permission.DUMP — " +
+                    "приложению без системных прав он не выдаётся. Приложение не подставляет вместо него " +
+                    "оценку: активный самотест аудиобуфера делается по кнопке и измеряет реальное поведение HAL."
             )
         }
 
@@ -197,13 +199,13 @@ object Diagnoser {
                     Action.COOL_DOWN
                 )
             }
-        } else if (!s.hasShell) {
+        } else {
             f += Finding(
                 Severity.INFO,
-                "Реальный FPS недоступен без Shizuku",
-                "SurfaceFlinger и AudioFlinger отдают данные только процессам с правами shell. " +
-                    "С Shizuku открываются настоящие FPS, jank и underrun.",
-                Action.SHIZUKU
+                "Реальный FPS недоступен обычному приложению",
+                "Настоящие кадры в секунду живут в `dumpsys SurfaceFlinger --latency`, а дамп требует " +
+                    "android.permission.DUMP. Без системных прав приложение не ставит внешних сервисов " +
+                    "ради одной метрики и не выдумывает число: в HUD будет N/A."
             )
         }
 

@@ -11,10 +11,15 @@ class Settings(context: Context) {
 
     enum class OverlayMode { OFF, MINIMAL, FULL }
 
+    /**
+     * По умолчанию HUD выключен: приложение начинает с тюнера, а измерения
+     * включаются пользователем явной кнопкой. Иначе оверлей появляется поверх
+     * игры сам, а это ровно то, чего человек не просил.
+     */
     var overlayMode: OverlayMode
         get() = runCatching {
-            OverlayMode.valueOf(prefs.getString(KEY_MODE, OverlayMode.FULL.name) ?: OverlayMode.FULL.name)
-        }.getOrDefault(OverlayMode.FULL)
+            OverlayMode.valueOf(prefs.getString(KEY_MODE, OverlayMode.OFF.name) ?: OverlayMode.OFF.name)
+        }.getOrDefault(OverlayMode.OFF)
         set(value) = prefs.edit().putString(KEY_MODE, value.name).apply()
 
     /**
@@ -26,13 +31,23 @@ class Settings(context: Context) {
         get() = prefs.getInt(KEY_INTERVAL, 1000).coerceIn(1000, 5000)
         set(value) = prefs.edit().putInt(KEY_INTERVAL, value.coerceIn(1000, 5000)).apply()
 
-    var monitorEnabled: Boolean
-        get() = prefs.getBoolean(KEY_MONITOR, true)
-        set(value) = prefs.edit().putBoolean(KEY_MONITOR, value).apply()
-
     var startOnBoot: Boolean
         get() = prefs.getBoolean(KEY_BOOT, false)
         set(value) = prefs.edit().putBoolean(KEY_BOOT, value).apply()
+
+    /**
+     * Яркость, которая была на экране до первого понижения профилем.
+     * Нужна для честного отката: «Сбросить» возвращает не 100%, а то
+     * значение, которое человек выставил сам. -1 означает «не запоминать».
+     */
+    var brightnessBeforeTune: Int
+        get() = prefs.getInt(KEY_BRIGHTNESS_BACKUP, -1)
+        set(value) = prefs.edit().putInt(KEY_BRIGHTNESS_BACKUP, value).apply()
+
+    /** Идентификатор последнего применённого профиля — только для показа в UI. */
+    var lastProfileId: String?
+        get() = prefs.getString(KEY_PROFILE, null)?.takeIf { it.isNotBlank() }
+        set(value) = prefs.edit().putString(KEY_PROFILE, value).apply()
 
     /** Пакет, если пользователь указал игру вручную (когда автоопределение не работает). */
     var manualGamePackage: String?
@@ -68,9 +83,10 @@ class Settings(context: Context) {
     private companion object {
         const val KEY_MODE = "overlay_mode"
         const val KEY_INTERVAL = "sample_interval"
-        const val KEY_MONITOR = "monitor_enabled"
         const val KEY_BOOT = "start_on_boot"
         const val KEY_MANUAL_GAME = "manual_game"
+        const val KEY_BRIGHTNESS_BACKUP = "brightness_backup"
+        const val KEY_PROFILE = "last_profile"
         const val KEY_ALPHA = "overlay_alpha"
         const val KEY_X = "overlay_x"
         const val KEY_Y = "overlay_y"

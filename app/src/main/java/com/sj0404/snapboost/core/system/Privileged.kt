@@ -3,34 +3,30 @@ package com.sj0404.snapboost.core.system
 import android.util.Log
 
 /**
- * Точка выбора исполнителя команд + кэш «дорогих» дампов.
+ * Единственный исполнитель системных команд + кэш «дорогих» дампов.
  *
- * Приоритет: Shizuku (UID shell) → приложение (свой UID). Выбор происходит
- * один раз на вызов, потому что Shizuku может быть запущен прямо во время
- * работы приложения, и закешированный "недоступен" не должен быть вечным.
+ * Приложение работает от своего UID и сознательно не требует ни root, ни
+ * внешних сервисов с правами shell. Отсюда важное ограничение: `dumpsys`
+ * требует android.permission.DUMP, поэтому всё, что берётся из него
+ * (реальный FPS, jank, счётчик audio underrun, стек аудио-фокуса), обычному
+ * приложению недоступно и остаётся N/A. Подменять эти поля правдоподобными
+ * догадками нельзя — по ним принимают решения про настройку железа.
+ *
+ * Зато sysfs, procfs и `getprop` читаются полноценно, и на них построены
+ * реальные метрики CPU, GPU, температуры и PSI.
  */
 object Privileged {
 
     private val direct = DirectRunner()
-    private val shizuku = ShizukuRunner()
 
     private const val TAG = "SnapBoost/Privileged"
 
-    /** UID, под которым реально выполняются привилегированные команды. */
+    /** UID, под которым выполняются команды. Всегда собственный UID приложения. */
     val effectiveUid: Int
-        get() = runner().run(listOf("id", "-u"), 2000).stdout.trim().toIntOrNull() ?: android.os.Process.myUid()
+        get() = runner().run(listOf("id", "-u"), 2000).stdout.trim().toIntOrNull()
+            ?: android.os.Process.myUid()
 
-    val hasShell: Boolean get() = effectiveUid == 2000 || effectiveUid == 0
-
-    val sourceName: String
-        get() = when {
-            shizuku.available -> "shell (Shizuku)"
-            else -> "app"
-        }
-
-    fun runner(): CommandRunner = if (shizuku.available) shizuku else direct
-
-    fun shizukuAvailable(): Boolean = shizuku.available
+    fun runner(): CommandRunner = direct
 
     // ---------------------------------------------------------------- dumpsys
 

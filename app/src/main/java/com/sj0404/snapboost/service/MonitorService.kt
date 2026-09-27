@@ -30,7 +30,6 @@ import com.sj0404.snapboost.core.perf.ForegroundGameDetector
 import com.sj0404.snapboost.core.perf.FpsTracker
 import com.sj0404.snapboost.core.system.CpuReader
 import com.sj0404.snapboost.core.system.GpuReader
-import com.sj0404.snapboost.core.system.Privileged
 import com.sj0404.snapboost.core.system.PressureReader
 import com.sj0404.snapboost.core.system.ProcReader
 import com.sj0404.snapboost.core.system.ThermalReader
@@ -179,9 +178,7 @@ class MonitorService : Service() {
             pressure = pressure,
             process = process,
             audio = audio,
-            fps = lastFps,
-            privilegeSource = Privileged.sourceName,
-            hasShell = Privileged.hasShell
+            fps = lastFps
         )
         currentSnapshot = snapshot
         app.publish(snapshot)
