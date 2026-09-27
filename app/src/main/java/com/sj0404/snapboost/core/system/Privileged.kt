@@ -93,7 +93,11 @@ object Privileged {
         return value
     }
 
-    fun invalidateAll() = synchronized(cache) { cache.clear() }
+    fun invalidateAll() {
+        synchronized(cache) { cache.clear() }
+    }
 
-    fun invalidate(service: String) = synchronized(cache) { cache.remove(service) }
+    fun invalidate(service: String) {
+        synchronized(cache) { cache.remove(service) }
+    }
 }

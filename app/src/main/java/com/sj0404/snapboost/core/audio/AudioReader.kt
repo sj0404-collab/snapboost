@@ -40,7 +40,7 @@ class AudioReader(private val context: Context) {
         // Реальная частота, с которой умеет работать HAL. Расхождение с текущей
         // означает ресемплинг, а ресемплинг — источник артефактов.
         val nativeRate = try {
-            AudioTrack.getNativeOutputSampleRate().takeIf { it > 0 }
+            AudioTrack.getNativeOutputSampleRate(context).takeIf { it > 0 }
         } catch (_: Throwable) {
             null
         }

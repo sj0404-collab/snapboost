@@ -1,6 +1,5 @@
 package com.sj0404.snapboost.core.system
 
-import android.os.Build
 import android.util.Log
 
 /**
@@ -19,16 +18,18 @@ class ShizukuRunner : CommandRunner {
 
     override val name: String = "shizuku"
 
+    /**
+     * Доступность определяется только реальным pingBinder: отдельная проверка
+     * версии не нужна, потому что библиотека обращается рефлексией и её
+     * отсутствие само по себе даёт false.
+     */
     override val available: Boolean
-        get() {
-            if (!Build.SUPPORTED) return false
-            return try {
-                val cls = Class.forName("dev.rikka.shizuku.Shizuku")
-                val ping = cls.getMethod("pingBinder")
-                (ping.invoke(null) as? Boolean) == true
-            } catch (_: Throwable) {
-                false
-            }
+        get() = try {
+            val cls = Class.forName("dev.rikka.shizuku.Shizuku")
+            val ping = cls.getMethod("pingBinder")
+            (ping.invoke(null) as? Boolean) == true
+        } catch (_: Throwable) {
+            false
         }
 
     override fun run(cmd: List<String>, timeoutMs: Int): CommandResult {

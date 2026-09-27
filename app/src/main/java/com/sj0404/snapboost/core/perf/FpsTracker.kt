@@ -1,7 +1,5 @@
 package com.sj0404.snapboost.core.perf
 
-import android.os.Handler
-import android.os.HandlerThread
 import android.view.Choreographer
 import com.sj0404.snapboost.core.FpsState
 import com.sj0404.snapboost.core.system.Privileged
@@ -25,8 +23,8 @@ class FpsTracker {
     private var displayHz: Int? = null
     private var lastGfxResetAt = 0L
 
-    private val hzThread = HandlerThread("snapboost-hz").apply { start() }
-    private val hzHandler = Handler(hzThread.looper)
+    // Choreographer привязан к Looper потока, в котором он создан, поэтому
+    // он берётся на том же (главном) потоке, что и сервис.
     private val choreographer: Choreographer? by lazy { runCatching { Choreographer.getInstance() }.getOrNull() }
 
     @Volatile
@@ -35,16 +33,18 @@ class FpsTracker {
     @Volatile
     private var hzStop = false
 
-    init {
-        choreographer?.postFrameCallback(hzCallback)
-    }
-
     private val hzCallback = object : Choreographer.FrameCallback {
         override fun doFrame(frameTimeNanos: Long) {
             hzCount++
             if (hzStop) return
             choreographer?.postFrameCallback(this)
         }
+    }
+
+    // Инициализация обязательно после объявления hzCallback: Kotlin выполняет
+    // инициализаторы в порядке объявления.
+    init {
+        choreographer?.postFrameCallback(hzCallback)
     }
 
     /** Реальная частота обновления панели, а не FPS игры. */

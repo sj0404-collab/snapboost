@@ -23,9 +23,12 @@ object Sysfs {
     fun readString(path: String): String? = readString(File(path))
 
     fun readString(file: File): String? = try {
-        if (!file.isFile || !file.canRead()) return null
-        val text = file.readText().trim()
-        if (text.isEmpty()) null else text
+        if (!file.isFile || !file.canRead()) {
+            null
+        } else {
+            val text = file.readText().trim()
+            if (text.isEmpty()) null else text
+        }
     } catch (_: Throwable) {
         null
     }

@@ -141,19 +141,23 @@ private fun AppUi(activity: MainActivity) {
 
             FindingsCard(findings, busy, scope, fixer, detector) { lastOutcome = it }
 
-            ActionsCard(busy) { action ->
-                busy = true
-                scope.launch(Dispatchers.IO) {
-                    lastOutcome = runAction(action, fixer, detector)
-                    busy = false
+            ActionsCard(
+                busy = busy,
+                onAction = { action ->
+                    busy = true
+                    scope.launch(Dispatchers.IO) {
+                        lastOutcome = runAction(action, fixer, detector)
+                        busy = false
+                    }
+                },
+                onProbe = { probe ->
+                    busy = true
+                    scope.launch(Dispatchers.IO) {
+                        probeResult = probe()
+                        busy = false
+                    }
                 }
-            } { probe ->
-                busy = true
-                scope.launch(Dispatchers.IO) {
-                    probeResult = probe()
-                    busy = false
-                }
-            }
+            )
 
             OverlaySettingsCard(settings)
 

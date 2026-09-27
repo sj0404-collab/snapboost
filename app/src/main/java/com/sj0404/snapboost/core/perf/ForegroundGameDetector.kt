@@ -55,10 +55,9 @@ class ForegroundGameDetector(private val context: Context) {
         // Принцип проверки: при выданном доступе запрос проходит молча (даже если
         // событий нет), а без доступа Android бросает SecurityException.
         return try {
-            usm.queryEvents(
-                SystemClock.elapsedRealtime() - 1000L,
-                SystemClock.elapsedRealtime()
-            ).use { true }
+            val now = SystemClock.elapsedRealtime()
+            usm.queryEvents(now - 1000L, now)
+            true
         } catch (_: Throwable) {
             false
         }

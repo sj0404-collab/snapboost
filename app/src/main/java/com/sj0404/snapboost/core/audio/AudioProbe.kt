@@ -106,7 +106,15 @@ object AudioProbe {
                     framesWritten += written / bytesPerFrame
                 }
 
-                if (track.getTimestamp(ts) == 0) {
+                // Сигнатура getTimestamp различается между версиями SDK
+                // (Int-код возврата в старых, Boolean в новых стабах), поэтому
+                // результат трактуется одинаково в обоих случаях.
+                val tsOk: Boolean = when (val raw = track.getTimestamp(ts)) {
+                    is Boolean -> raw
+                    is Int -> raw == 0
+                    else -> false
+                }
+                if (tsOk) {
                     val presented = ts.framePosition.toLong()
                     val inFlight = framesWritten - presented
                     minInFlight = min(minInFlight, inFlight)

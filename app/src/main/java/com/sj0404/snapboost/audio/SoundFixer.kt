@@ -69,7 +69,9 @@ class SoundFixer(private val context: Context) {
         }
 
         return try {
-            val intent = Intent(BluetoothAdapter.ACTION_REQUEST_DISABLE)
+            // Константа BluetoothAdapter.ACTION_REQUEST_DISABLE скрыта в стабах SDK,
+            // поэтому используется документированное действие напрямую.
+            val intent = Intent(ACTION_REQUEST_DISABLE)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(intent)
             Outcome(
@@ -185,23 +187,47 @@ class SoundFixer(private val context: Context) {
     // ------------------------------------------------- 5. Игровой режим
 
     /**
-     * Просит системный GameManager включить производительный режим.
-     * Поддерживается не всеми прошивками — при отказе сообщаем честно.
+     * Просит систему включить производительный режим для игры.
+     *
+     * Штатный `GameManager.setGameMode` закрыт в стабах SDK, а `MODE_PERFORMANCE`
+     * не является публичной константой, поэтому используется документированная
+     * shell-команда `cmd game mode-performance`, а при её отсутствии —
+     * рефлексия. Если оба пути недоступны, честно сообщаем об отказе.
      */
     fun setPerformanceMode(pkg: String?): Outcome {
         if (pkg == null) return Outcome(false, "Игровой режим", "Игра не определена")
         if (Build.VERSION.SDK_INT < 31) {
             return Outcome(false, "Игровой режим", "Требуется Android 12+")
         }
+
+        if (Privileged.hasShell) {
+            val r = Privileged.runner().run(listOf("cmd", "game", "mode-performance", pkg), 3000)
+            if (r.ok) {
+                return Outcome(true, "Игровой режим", "Производительный режим запрошен для $pkg")
+            }
+            val shellErr = r.stderr.trim().take(80).ifEmpty { "код ${r.code}" }
+            return Outcome(
+                false,
+                "Игровой режим",
+                "Система не переключила режим ($shellErr). Прошивка может не поддерживать эту команду"
+            )
+        }
+
         return try {
-            val gm = context.getSystemService(Context.GAME_SERVICE) as? android.app.GameManager
-                ?: return Outcome(false, "Игровой режим", "Сервис GameManager недоступен")
-            gm.setGameMode(pkg, android.app.GameManager.MODE_PERFORMANCE)
-            Outcome(true, "Игровой режим", "Запрошен производительный режим для $pkg")
+            val svc = context.getSystemService(Context.GAME_SERVICE) ?: return reflectFail()
+            val method = svc.javaClass.methods.firstOrNull { m ->
+                m.name == "setGameMode" && m.parameterCount == 2
+            } ?: return reflectFail()
+            val mode = gameModePerformance() ?: return reflectFail()
+            method.invoke(svc, pkg, mode)
+            Outcome(true, "Игровой режим", "Производительный режим запрошен для $pkg")
         } catch (t: Throwable) {
-            Outcome(false, "Игровой режим", "Система отклонила запрос: ${t.javaClass.simpleName}")
+            reflectFail(t.javaClass.simpleName)
         }
     }
+
+    private fun reflectFail(reason: String = "API недоступен") =
+        Outcome(false, "Игровой режим", "Не удалось: $reason. Нужны права shell (Shizuku) или Android 12+")
 
     // ------------------------------------------------- 6. Фоновые процессы
 
@@ -265,5 +291,22 @@ class SoundFixer(private val context: Context) {
         Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
     } catch (_: Throwable) {
         false
+    }
+
+    private companion object {
+        /**
+         * Значение BluetoothAdapter.ACTION_REQUEST_DISABLE. Константа скрыта
+         * в публичных стабах SDK, поэтому берём документированное значение строки.
+         */
+        const val ACTION_REQUEST_DISABLE = "android.bluetooth.adapter.action.REQUEST_DISABLE"
+
+        /** android.app.GameManager.MODE_PERFORMANCE, прочитанная рефлексией. */
+        fun gameModePerformance(): Int? = try {
+            Class.forName("android.app.GameManager")
+                .getField("MODE_PERFORMANCE")
+                .get(null) as? Int
+        } catch (_: Throwable) {
+            null
+        }
     }
 }
