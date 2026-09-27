@@ -1,0 +1,94 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Cache Android SDK
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle.kts', 'gradle/libs.versions.toml') }}
+          restore-keys: gradle-${{ runner.os }}-
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Cache Android SDK platforms
+        uses: actions/cache@v4
+        with:
+          path: |
+            $ANDROID_HOME/platforms
+            $ANDROID_HOME/build-tools
+          key: android-sdk-${{ runner.os }}-${{ hashFiles('app/build.gradle.kts') }}
+          restore-keys: android-sdk-${{ runner.os }}-
+
+      - name: Accept SDK licenses
+        run: |
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" > /dev/null
+
+      - name: Unit tests
+        run: ./gradlew testDebugUnitTest --stacktrace
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Build release APK
+        run: ./gradlew assembleRelease --stacktrace
+
+      - name: Collect APKs
+        run: |
+          mkdir -p dist
+          cp -v app/build/outputs/apk/debug/*.apk dist/ 2>/dev/null || echo "no debug apk"
+          cp -v app/build/outputs/apk/release/*.apk dist/ 2>/dev/null || echo "no release apk"
+          ls -la dist/
+
+      - name: Upload APK artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: snapboost-apk
+          path: dist/*.apk
+          if-no-files-found: error
+
+      - name: Attach APK to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.apk
+          generate_release_notes: true
+          body: |
+            ## SnapBoost ${{ github.ref_name }}
+
+            Диагностический оверлей для Snapdragon: реальные FPS, frametime, троттлинг CPU/GPU,
+            температуры, PSI и состояние аудиотракта.
+
+            **Подпись.** Релизная сборка подписана ключом из репозитория
+            (keystore/release.jks, пароль `snapboost`). Он опубликовен намеренно, чтобы
+            собирать APK из исходников. Для распространения через сторонние каналы
+            замените его своим ключом.
+
+            **Установка.** `adb install -r snapboost-release.apk`
