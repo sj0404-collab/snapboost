@@ -40,7 +40,7 @@ object Diagnoser {
         if (rate != null && rate >= 0.5f) {
             f += Finding(
                 Severity.CRITICAL,
-                "Аудиобуфер голодает: ${"%.1f".format(rate)} потерь/с",
+                "Аудиобуфер голодает: underrun ${"%.1f".format(rate)}/с",
                 "Счётчик underrun в AudioFlinger растёт. Буфер не успевает наполняться — " +
                     "именно это слышно как «рыба», щелчки и пропуски на спецэффектах.",
                 if (a.route == AudioRoute.BLUETOOTH_A2DP) Action.WIRED_AUDIO else Action.DISABLE_SURROUND
@@ -237,6 +237,8 @@ object Diagnoser {
             )
         }
 
-        return f.sortedByDescending { it.severity.ordinal }
+        // Сначала критичное, затем предупреждения и заметки: в списке и в HUD
+        // пользователь должен видеть самую серьёзную проблему первой.
+        return f.sortedBy { it.severity.ordinal }
     }
 }
