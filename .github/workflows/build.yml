@@ -57,6 +57,10 @@ jobs:
           key: android-sdk-${{ runner.os }}-${{ hashFiles('app/build.gradle.kts') }}
           restore-keys: android-sdk-${{ runner.os }}-
 
+      # На Windows бит исполнения у gradlew теряется, поэтому подстраховываемся.
+      - name: Ensure gradlew is executable
+        run: chmod +x gradlew
+
       - name: Unit tests
         run: ./gradlew testDebugUnitTest --stacktrace
 
